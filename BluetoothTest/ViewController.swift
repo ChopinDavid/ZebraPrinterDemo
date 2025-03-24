@@ -33,7 +33,57 @@ class ViewController: UIViewController  {
              }
         }
     }
+    
+    @IBAction func sendOverHTTP(_ sender: Any) {
+        let consumerKey = "XXX"
+        let tennantNumber = "XXX"
+        let serialNumber = "XXX"
+        
+        let url = URL(string: "https://api.zebra.com/v2/devices/printers/send")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("text/plain", forHTTPHeaderField: "accept")
+        request.setValue(consumerKey, forHTTPHeaderField: "apikey")
+        request.setValue(tennantNumber, forHTTPHeaderField: "tenant")
 
+        let boundary = "Boundary-\(UUID().uuidString)"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        // Add sn field
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"sn\"\r\n\r\n".data(using: .utf8)!)
+        body.append("\(serialNumber)\r\n".data(using: .utf8)!)
+
+        // Add zpl_file field with string data
+        let zplCommand = "^XA^FO50,50^ADN,36,20^FDHello, Zebra!^FS^XZ"
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"zpl_file\"; filename=\"packagecontents.zpl\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
+        body.append(zplCommand.data(using: .utf8)!)
+        body.append("\r\n".data(using: .utf8)!)
+
+        // End boundary
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        let task = URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("Error: \(error)")
+                return
+            }
+            if let response = response as? HTTPURLResponse {
+                print("Status Code: \(response.statusCode)")
+            }
+            if let data = data, let responseString = String(data: data, encoding: .utf8) {
+                print("Response: \(responseString)")
+            }
+        }
+
+        task.resume()
+    }
 }
 
 extension ViewController: EAAccessoryManagerConnectionStatusDelegate {

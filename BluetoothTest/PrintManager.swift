@@ -27,21 +27,24 @@ class PrintManager: NSObject {
     private var disconnectNotificationObserver: NSObjectProtocol?
     private var connectedNotificationObserver: NSObjectProtocol?
     static let sharedInstance = PrintManager()
-
-    private override init() {
-        super.init()
-        manager = EAAccessoryManager.shared()
+    
+    func connectToPrinter() {
         self.findConnectedPrinter { [weak self] bool in
             if let strongSelf = self {
                 strongSelf.isConnected = bool
             }
         }
+    }
+
+    private override init() {
+        super.init()
+        manager = EAAccessoryManager.shared()
+        connectToPrinter()
         //Notifications
         disconnectNotificationObserver = NotificationCenter.default.addObserver(forName: Notification.Name.EAAccessoryDidDisconnect, object: nil, queue: nil, using: didDisconnect)
 
         connectedNotificationObserver = NotificationCenter.default.addObserver(forName: Notification.Name.EAAccessoryDidConnect, object: nil, queue: nil, using: didConnect)
         manager.registerForLocalNotifications()
-
     }
 
     deinit {
@@ -113,9 +116,12 @@ class PrintManager: NSObject {
         print(String(data: data, encoding: String.Encoding.utf8) as String!)
         connectToPrinter(completion: { _ in
             var error:NSError?
-            printerConnection?.write(data, error: &error)
-            if error != nil {
-                print("Error executing data writing \(String(describing: error))")
+            let zplCommand = "^XA^FO50,50^ADN,36,20^FDHello, Zebra!^FS^XZ"
+            if let printData = zplCommand.data(using: .utf8) {
+                printerConnection?.write(printData, error: &error)
+                if error != nil {
+                    print("Error executing data writing \(String(describing: error))")
+                }
             }
 
         })
